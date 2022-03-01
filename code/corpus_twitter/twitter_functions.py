@@ -71,7 +71,7 @@ def load_json_timeline(ID, src):
             try:
                 json_timeline.append(json.loads(line))
             except JSONDecodeError:
-                pass
+                print(f"JSONDecodeError for ID {ID}")
             
     return json_timeline
 
