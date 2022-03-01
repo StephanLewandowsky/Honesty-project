@@ -86,9 +86,9 @@ def unravel_data(tl_obj):
 
 def extract_tweet_information(j):
     t = {}
-    t['id'] = j['id']
-    t['author_id'] = j['author_id']
-    t['conversation_id'] = j['conversation_id']
+    t['id'] = str(j['id'])
+    t['author_id'] = str(j['author_id'])
+    t['conversation_id'] = str(j['conversation_id'])
     t['created_at'] = j['created_at']
     t['lang'] = j['lang']
     t['text'] = j['text']
