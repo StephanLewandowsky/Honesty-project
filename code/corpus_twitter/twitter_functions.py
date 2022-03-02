@@ -148,3 +148,22 @@ def check_reply(reference_list):
             return True
         else:
             return False
+        
+def extract_domain(url):
+    # reformat entries that have the domain after a general name in parantheses
+    if url.find('(') > 0:
+        url = url.split('(')[-1]
+        url = url.strip(')')
+    # trailing "/" and spaces
+    url = url.strip('/').strip()
+    # transform all domains to lowercase
+    url = url.lower()
+    # remove any white spaces
+    url = url.replace(' ', '')
+    # if present: remove the protocol
+    if url.startswith(("http", "https")):
+        url = url.split('//')[1]
+    # remove "www." 
+    url = url.replace('www.', '')
+    url = url.split("/")[0]
+    return url
