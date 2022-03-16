@@ -189,6 +189,8 @@ def preprocess(df, args):
     df = df.drop_duplicates(subset='text',keep='first')
     df = df.drop_duplicates(subset='id',keep='first')
     if args.corpus == 'Twitter':
+        if 'retweeted' in df.columns:
+            df = df[~df.retweeted]
         def tw_len(x):
             x = x.split()
             x_filter = filter(lambda x: x != 'user', x)
@@ -207,7 +209,7 @@ def filter_liwc(args):
 
 
 def main(args):
-    df = pd.read_csv(args.input_file)#, nrows=10000
+    df = pd.read_csv(args.input_file, error_bad_lines=False, warn_bad_lines=True, low_memory=False)#, nrows=10000
     df = preprocess(df, args)
 
     df[['belief_terms','belief_count','truth_terms','truth_count', 'understanding_terms', 'understanding_count','word_count']] \
