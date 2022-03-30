@@ -1,0 +1,1 @@
+cat conversations_to_convert.txt | xargs -i sh -c "twarc2 csv /data/honesty/corpora/Twitter/US_politician_twitter_conversations/{}.jsonl /data/honesty/corpora/Twitter/US_politician_twitter_conversations_csv/{}.csv"
