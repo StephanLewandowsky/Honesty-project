@@ -7,8 +7,10 @@ import seaborn as sns
 import datetime
 import os
 import tqdm
-sns.set_style('darkgrid')
-sns.set_palette('Set2')
+
+sns.set_style('white')
+#sns.set_palette('Set2')
+plt.rc("axes.spines", top=False, right=False)
 
 def config(parser):
     parser.add_argument('--input_file')
@@ -37,22 +39,25 @@ if __name__ == '__main__':
        os.makedirs(output_path)
 
     cols = ['emo_neg', 'emo_pos','Authentic','Analytic','moral']#'emotion', 
-    threshold_label = ['belief_label', 'truth_label', 'understanding_label']
+    threshold_label = ['belief_label', 'truth_label']#, 'understanding_label'
 
     if args.corpus == 'Twitter':
         label_fld = threshold_label + ['party'] if args.use_threshold_label else ['max_label']
         liwc_df = pd.read_csv(args.input_file, usecols=['id','created_at']+label_fld)
+        liwc_df['id'] = liwc_df.id.apply(lambda x: x.strip('"'))
+        liwc_df = liwc_df[liwc_df.party.isin(['Republican', 'Democrat'])]
     elif args.corpus == 'NYT':
         label_fld = threshold_label + ['section'] if args.use_threshold_label else ['max_label']
         grp_dict = {"U.S.":"UWW", "World":"UWW", "Washington":"UWW", "Health":"HSEC", "Science":"HSEC", 
                     "Education":"HSEC", "Climate":"HSEC", "Opinion":"OP"}
         liwc_df = pd.read_csv(args.input_file, usecols=['id','created_at']+label_fld)
+        liwc_df['id'] = liwc_df.id.apply(lambda x: x.strip('"'))
         liwc_df['section_grp'] = liwc_df.section.apply(lambda x: grp_dict[x])
         if args.remove_hsec:
            liwc_df = liwc_df[liwc_df['section_grp'] != 'HSEC']
 
-    if args.corpus == 'Twitter':
-        liwc_df['id'] = liwc_df['id'].astype(int)
+    #if args.corpus == 'Twitter':
+    #    liwc_df['id'] = liwc_df['id'].astype(int)
 
 
     print(len(pd.to_datetime(liwc_df['created_at']).dt.year.unique()))
@@ -61,8 +66,9 @@ if __name__ == '__main__':
     #    full_id_date['id'] = full_id_date['id'].astype(int)
     #print(len(pd.to_datetime(full_id_date['created_at']).dt.year.unique()))
     full_liwc_df = pd.read_csv(args.full_liwc,usecols=['id','WC']+cols)
-    if args.corpus == 'Twitter':
-        full_liwc_df['id'] = full_liwc_df['id'].astype(int)
+    full_liwc_df['id'] = full_liwc_df.id.apply(lambda x: x.strip('"'))
+    #if args.corpus == 'Twitter':
+    #    full_liwc_df['id'] = full_liwc_df['id'].astype(int)
     print(f'Initial length: subset is {len(liwc_df)}, full is {len(full_liwc_df)}')
     full_liwc = liwc_df.join(full_liwc_df.set_index('id'), on='id', how='left')
     full_liwc = full_liwc.dropna()
@@ -79,9 +85,9 @@ if __name__ == '__main__':
         print(len(pd.to_datetime(liwc['created_at']).dt.year.unique()))
         print(len(pd.to_datetime(full_liwc['created_at']).dt.year.unique()))
         liwc = liwc.drop_duplicates(subset='id')
-        print(len(pd.to_datetime(liwc['created_at']).dt.year.unique()))
+        #print(len(pd.to_datetime(liwc['created_at']).dt.year.unique()))
     full_liwc = full_liwc.drop_duplicates(subset='id')
-    print(len(pd.to_datetime(full_liwc['created_at']).dt.year.unique()))
+    #print(len(pd.to_datetime(full_liwc['created_at']).dt.year.unique()))
         #    print(f'After join: subset is {len(liwc)}, full is {len(full_liwc)}')
 
     if args.corpus == 'NYT':
@@ -101,7 +107,7 @@ if __name__ == '__main__':
         full_liwc[time_scale] = full_liwc['created_at'].dt.year
         #liwc = liwc[liwc[time_scale] > 1980]
         #full_liwc = full_liwc[full_liwc[time_scale] > 1980]
-        print(full_liwc[time_scale].unique())
+        #print(full_liwc[time_scale].unique())
         #liwc.to_csv('/data/honesty/corpora/NYT/NYT-API/NYT_id_label_liwc.csv', index=False)
         #sys.exit()
     elif args.corpus == 'Twitter':
@@ -122,7 +128,7 @@ if __name__ == '__main__':
         full_liwc[time_scale] = pd.to_datetime(full_liwc['created_at'].dt.strftime('%Y-%m'))
         full_liwc['year'] = full_liwc['created_at'].dt.year
         full_liwc = full_liwc[full_liwc['year'] > 2014]
-        print(full_liwc[time_scale].unique())
+        #print(full_liwc[time_scale].unique())
     else:
         sys.exit('corpus not supported')
     
@@ -192,7 +198,8 @@ if __name__ == '__main__':
                 axes[i].set_title(label)
                 if args.corpus == 'Twitter':
                     palette = {"Democrat": "blue", "Republican": "red"}
-                    colors = {"Democrat": "tab:blue", "Republican": "tab:red"}
+                    #colors = {"Democrat": "tab:blue", "Republican": "tab:red"}
+                    colors = {"Democrat": "#0015BC", "Republican": "#FF0000"}
                     axes[i].axvline(x=pd.to_datetime('2016-11-01'), color='black', linestyle='--')
                     axes[i].axvline(x=pd.to_datetime('2020-11-01'), color='black', linestyle='--')
                 elif args.corpus == 'NYT':
@@ -231,6 +238,7 @@ if __name__ == '__main__':
             fn_plot = os.path.join(output_path, f'{col}_plot.svg')
             plt.tight_layout()
             plt.savefig(fn_plot, format='svg', dpi=300) 
+            #plt.savefig(fn_plot, format='png', dpi=300) 
             plt.close()
     else:
         for col in cols:

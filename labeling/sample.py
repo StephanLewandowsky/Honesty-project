@@ -15,6 +15,7 @@ def config(parser):
     parser.add_argument('--filter_liwc', default=False, action='store_true')
     parser.add_argument('--mask_match', default=False, action='store_true')
     parser.add_argument('--mask_all', default=False, action='store_true')
+    parser.add_argument('--split_df', default=False, action='store_true')
     parser.add_argument('--output_file')
     parser.add_argument('--threshold', type=int)
     return parser
@@ -27,11 +28,11 @@ matcher = PhraseMatcher(nlp.vocab, attr='LEMMA')
 #df = pd.read_csv('lexicons.csv') #combine lexicons in a single file with header
 #read lexicon files  with pandas
 #convert to dicts and merge into phrase_dict
-belief_speaking_df = pd.read_csv('/data/honesty/belief_speaking_lemmav2.csv')
+belief_speaking_df = pd.read_csv('/data/honesty/belief_speaking_lemmav3.csv')
 belief_dict = belief_speaking_df.to_dict(orient='list')
-seeking_understanding_df = pd.read_csv('/data/honesty/seeking_understanding_lemmav2.csv')
+seeking_understanding_df = pd.read_csv('/data/honesty/seeking_understanding_lemmav3.csv')
 understanding_dict = seeking_understanding_df.to_dict(orient='list')
-truth_seeking_df = pd.read_csv('/data/honesty/truth_seeking_lemmav2.csv')
+truth_seeking_df = pd.read_csv('/data/honesty/truth_seeking_lemmav3.csv')
 truth_dict = truth_seeking_df.to_dict(orient='list')
 
 phrase_dict = {**belief_dict, **understanding_dict, **truth_dict}
@@ -97,11 +98,18 @@ def mask_full_list(text):
             match_term = doc[start:end].text
             text = text.replace(match_term, '#')
     return text
+
 def mask_matches_full(args):
-    df = pd.read_csv(args.input_file, error_bad_lines=False, warn_bad_lines=True)#, nrows=10000
-    df = preprocess(df)
+    if args.corpus == 'Twitter':
+        usecols=['id','text', 'retweeted']  
+    else:
+        usecols=['id','text']
+
+    df = pd.read_csv(args.input_file, error_bad_lines=False, warn_bad_lines=True, usecols=usecols)#, nrows=10000
+    df = preprocess(df, args)
     df['text'] = df.text.parallel_apply(mask_full_list)
-    if args.corpus == 'NYT':
+    df = df[['id','text']]
+    if args.split_df:
         from more_itertools import sliced
         import math
         chunk_size = math.ceil(len(df)/4)
@@ -109,9 +117,10 @@ def mask_matches_full(args):
             chunk.to_csv(f'{args.corpus}_id_maskalltext{i}.csv', index=False)
     else:
         df.to_csv(f'{args.corpus}_id_maskalltext.csv', index=False)
+
 def mask_matches(args):
     df = pd.read_csv(args.input_file, error_bad_lines=False, warn_bad_lines=True)#, nrows=10000
-    df = preprocess(df)
+    df = preprocess(df, args)
     df['text'] = df.text.parallel_apply(mask_match)
     if args.corpus == 'NYT':
         from more_itertools import sliced
@@ -185,6 +194,7 @@ def preprocess(df, args):
     df.replace(to_replace=r"&.*;", value="", regex=True, inplace=True)
     df.replace(to_replace=[r"\\t|\\n|\\r", "\t|\n|\r"], value=["",""], regex=True, inplace=True) 
     df.replace(to_replace=r"\s+", value=" ", regex=True, inplace=True)
+    df.replace(to_replace=r"\@\w+", value="user", regex=True, inplace=True)
 
     df = df.drop_duplicates(subset='text',keep='first')
     df = df.drop_duplicates(subset='id',keep='first')
@@ -214,18 +224,26 @@ def main(args):
 
     df[['belief_terms','belief_count','truth_terms','truth_count', 'understanding_terms', 'understanding_count','word_count']] \
     = df.text.parallel_apply(get_text_matches)
-    df['max_label'] = df[['belief_count', 'truth_count', 'understanding_count']].apply(classify, axis=1)
+    #df['max_label'] = df[['belief_count', 'truth_count', 'understanding_count']].apply(classify, axis=1)
+
+    
+    df[['belief_label', 'truth_label']] = df[['belief_count', 'truth_count']].apply(classify_majority, axis=1)
     #df = df[df['label']!="unknown"]
-    df[['belief_label', 'truth_label', 'understanding_label']] \
-    = df[['belief_count', 'truth_count', 'understanding_count']].apply(classify_threshold, args=(args.threshold,), axis=1)
+    #df[['belief_label', 'truth_label', 'understanding_label']] \
+    #= df[['belief_count', 'truth_count', 'understanding_count']].apply(classify_threshold, args=(args.threshold,), axis=1)
     df.to_csv(args.output_file, index=False)
-    print(df.groupby('max_label')['max_label'].value_counts())
+    #print(df.groupby('max_label')['max_label'].value_counts())
 
 def classify_threshold(x, threshold):
     belief_label = 0 if x['belief_count'] < threshold else 1
     truth_label = 0 if x['truth_count'] < threshold else 1
     understanding_label = 0 if x['understanding_count'] < threshold else 1
     return  pd.Series([belief_label, truth_label, understanding_label])
+
+def classify_majority(x):
+    belief_label = 0 if x['belief_count'] < x['truth_count'] or  x['belief_count'] == 0 else 1
+    truth_label = 0 if x['truth_count'] < x['belief_count'] or x['truth_count'] == 0 else 1
+    return  pd.Series([belief_label, truth_label])
 
 def classify(x):
     x = x.values.tolist()
